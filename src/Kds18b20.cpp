@@ -1,10 +1,10 @@
 #include "Kds18b20.h"
 float Kds18b20::readDs()
 {
-byte i;
+  byte i;
   byte type_s;
   byte data[12];
-  byte addr[8];
+
   float celsius, fahrenheit;
 
   if (!have && !ds.search(addr))

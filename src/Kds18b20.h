@@ -5,6 +5,7 @@
 class Kds18b20
 {
 private:
+    byte addr[8];
     int pin = 0;
     int have = 0;
     OneWire ds;
@@ -12,7 +13,6 @@ private:
 public:
     Kds18b20(int);
     float readDs();
-    
 };
 
 #endif
