@@ -1,6 +1,6 @@
 {
     "name": "ESP DS18b20",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Function for Esp8266 and ESP32 to read Ds18b20",
     "keywords": "ds18b20,esp8266,esp32",
     "repository": {
