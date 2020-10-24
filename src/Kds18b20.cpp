@@ -11,7 +11,7 @@ float Kds18b20::readDs()
   {
     ds.reset_search();
     delay(250);
-    Serial.println("Not found");
+    Serial.println("DS scan  Not found");
     return -1;
   }
   else
