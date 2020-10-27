@@ -1,90 +1,97 @@
 #include "Kds18b20.h"
-float Kds18b20::readDs()
+
+KDS::KDS(int port)
 {
-  byte i;
-  byte type_s;
-  byte data[12];
+    oneWire = OneWire(port);
+    sensors = DallasTemperature(&oneWire);
+    sensors.begin();
+    Serial.print("Found ");
+    Serial.print(sensors.getDeviceCount(), DEC);
+    Serial.println(" devices.");
 
-  float celsius, fahrenheit;
+    // report parasite power requirements
+    Serial.print("Parasite power is: ");
+    if (sensors.isParasitePowerMode())
+        Serial.println("ON");
+    else
+        Serial.println("OFF");
 
-  if (!have && !ds.search(addr))
-  {
-    ds.reset_search();
-    delay(250);
-    Serial.println("DS scan  Not found");
-    return -1;
-  }
-  else
-  {
-    have = true;
-  }
-  if (OneWire::crc8(addr, 7) != addr[7])
-  {
-    Serial.println("CRC is not valid!");
-    return -1;
-  }
-  //Serial.println();
+    // Assign address manually. The addresses below will beed to be changed
+    // to valid device addresses on your bus. Device address can be retrieved
+    // by using either oneWire.search(deviceAddress) or individually via
+    // sensors.getAddress(deviceAddress, index)
+    // Note that you will need to use your specific address here
+    //insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
 
-  // the first ROM byte indicates which chip
-  switch (addr[0])
-  {
-  case 0x10:
-    type_s = 1;
-    break;
-  case 0x28:
-    type_s = 0;
-    break;
-  case 0x22:
-    type_s = 0;
-    break;
-  default:
-    Serial.println("Device is not a DS18x20 family device.");
-    return -1;
-  }
+    // Method 1:
+    // Search for devices on the bus and assign based on an index. Ideally,
+    // you would do this to initially discover addresses on the bus and then
+    // use those addresses and manually assign them (see above) once you know
+    // the devices on your bus (and assuming they don't change).
+    if (!sensors.getAddress(insideThermometer, 0))
+        Serial.println("Unable to find address for Device 0");
 
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44, 1); // start conversion, with parasite power on at the end
-  delay(1000);
-  int present = ds.reset();
-  ds.select(addr);
-  ds.write(0xBE); // Read Scratchpad
+    // method 2: search()
+    // search() looks for the next device. Returns 1 if a new address has been
+    // returned. A zero might mean that the bus is shorted, there are no devices,
+    // or you have already retrieved all of them. It might be a good idea to
+    // check the CRC to make sure you didn't get garbage. The order is
+    // deterministic. You will always get the same devices in the same order
+    //
+    // Must be called before search()
+    //oneWire.reset_search();
+    // assigns the first address found to insideThermometer
+    //if (!oneWire.search(insideThermometer)) Serial.println("Unable to find address for insideThermometer");
 
-  for (i = 0; i < 9; i++)
-  {
-    data[i] = ds.read();
-  }
+    // show the addresses we found on the bus
+    Serial.print("Device 0 Address: ");
+    printAddress(insideThermometer);
+    Serial.println();
 
-  // Convert the data to actual temperature
-  int16_t raw = (data[1] << 8) | data[0];
-  if (type_s)
-  {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10)
-    {
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    }
-  }
-  else
-  {
-    byte cfg = (data[4] & 0x60);
-    if (cfg == 0x00)
-      raw = raw & ~7; // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20)
-      raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40)
-      raw = raw & ~1; // 11 bit res, 375 ms
-  }
-  celsius = (float)raw / 16.0;
-  fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print("Temperature = ");
-  Serial.print(celsius);
-  Serial.print(" Celsius, ");
-  Serial.print(fahrenheit);
-  Serial.println(" Fahrenheit");
-  return celsius;
+    // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
+    sensors.setResolution(insideThermometer, 9);
+
+    Serial.print("Device 0 Resolution: ");
+    Serial.print(sensors.getResolution(insideThermometer), DEC);
+    Serial.println();
 }
-Kds18b20::Kds18b20(int p)
+void KDS::printTemperature(DeviceAddress deviceAddress)
 {
-  ds = OneWire(p);
+    // method 1 - slower
+    //Serial.print("Temp C: ");
+    //Serial.print(sensors.getTempC(deviceAddress));
+    //Serial.print(" Temp F: ");
+    //Serial.print(sensors.getTempF(deviceAddress)); // Makes a second call to getTempC and then converts to Fahrenheit
+
+    // method 2 - faster
+    float tempC = sensors.getTempC(deviceAddress);
+    if (tempC == DEVICE_DISCONNECTED_C)
+    {
+        Serial.println("Error: Could not read temperature data");
+        return;
+    }
+    Serial.print("Temp C: ");
+    Serial.print(tempC);
+    Serial.print(" Temp F: ");
+    Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+}
+float KDS::readDs()
+{
+    sensors.requestTemperatures();
+    float tempC = sensors.getTempC(insideThermometer);
+    if (tempC == DEVICE_DISCONNECTED_C)
+    {
+        Serial.println("Error: Could not read temperature data");
+        return DEVICE_DISCONNECTED_C;
+    }
+    return tempC;
+}
+void KDS::printAddress(DeviceAddress deviceAddress)
+{
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        if (deviceAddress[i] < 16)
+            Serial.print("0");
+        Serial.print(deviceAddress[i], HEX);
+    }
 }

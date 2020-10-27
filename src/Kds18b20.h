@@ -1,18 +1,19 @@
-#include <Arduino.h>
+#ifndef KDS_H
+#define KDS_H
 #include "OneWire.h"
-#ifndef KDS18B20_H
-#define KDS18B20_H
-class Kds18b20
+#include "DallasTemperature.h"
+
+class KDS
 {
 private:
-    byte addr[8];
-    int pin = 0;
-    int have = 0;
-    OneWire ds;
+    OneWire oneWire;
+    DallasTemperature sensors;
+    DeviceAddress insideThermometer;
 
 public:
-    Kds18b20(int);
+    KDS(int);
+    void printTemperature(DeviceAddress);
+    void printAddress(DeviceAddress);
     float readDs();
 };
-
 #endif
